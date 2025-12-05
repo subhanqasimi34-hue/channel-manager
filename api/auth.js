@@ -4,15 +4,13 @@ const DISCORD_OAUTH = 'https://discord.com/api/oauth2/authorize';
 const DISCORD_TOKEN = 'https://discord.com/api/oauth2/token';
 const DISCORD_API = 'https://discord.com/api/v10';
 
-const {
-  DISCORD_CLIENT_ID,
-  DISCORD_CLIENT_SECRET,
-  DISCORD_REDIRECT_URI = 'http://localhost:3000/api/auth',
-  SESSION_SECRET = 'CHANGE_ME',
-  OWNER_IDS = ''
-} = process.env;
+const CLIENT_ID = process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET;
+const REDIRECT_URI = process.env.REDIRECT_URI || process.env.DISCORD_REDIRECT_URI || 'http://localhost:3000/api/auth';
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'CHANGE_ME';
+const OWNER_IDS = process.env.OWNER_IDS || '';
 
-const OWNER_SET = new Set((OWNER_IDS || '').split(',').map(s => s.trim()).filter(Boolean));
+const OWNER_SET = new Set(OWNER_IDS.split(',').map(s => s.trim()).filter(Boolean));
 
 function parseCookies(req) {
   const list = {};
@@ -36,6 +34,41 @@ function unauthorized(res) {
   res.json({ error: 'Unauthorized' });
 }
 
+async function exchangeCodeForToken(code) {
+  const body = new URLSearchParams({
+    client_id: CLIENT_ID,
+    client_secret: CLIENT_SECRET,
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: REDIRECT_URI
+  });
+
+  const tokenRes = await fetch(DISCORD_TOKEN, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+
+  if (!tokenRes.ok) {
+    const txt = await tokenRes.text();
+    throw new Error(`Token exchange failed: ${txt}`);
+  }
+
+  return tokenRes.json();
+}
+
+async function fetchDiscordUser(authHeader) {
+  const userRes = await fetch(`${DISCORD_API}/users/@me`, { headers: authHeader });
+  if (!userRes.ok) throw new Error('Failed to fetch user');
+  return userRes.json();
+}
+
+async function fetchDiscordGuilds(authHeader) {
+  const guildRes = await fetch(`${DISCORD_API}/users/@me/guilds`, { headers: authHeader });
+  if (!guildRes.ok) throw new Error('Failed to fetch guilds');
+  return guildRes.json();
+}
+
 export default async function handler(req, res) {
   const action = req.query.action || (req.method === 'GET' && req.query.code ? 'callback' : 'login');
 
@@ -44,7 +77,7 @@ export default async function handler(req, res) {
     const token = cookies.cm_session;
     if (!token) return unauthorized(res);
     try {
-      const decoded = jwt.verify(token, SESSION_SECRET);
+      const decoded = jwt.verify(token, JWT_SECRET);
       return res.json({ user: decoded.user, isOwner: decoded.isOwner, guilds: decoded.guilds || [] });
     } catch (err) {
       return unauthorized(res);
@@ -52,17 +85,19 @@ export default async function handler(req, res) {
   }
 
   if (action === 'login') {
-    if (!DISCORD_CLIENT_ID || !DISCORD_REDIRECT_URI) {
+    if (!CLIENT_ID || !REDIRECT_URI) {
       res.statusCode = 500;
-      return res.json({ error: 'Missing DISCORD_CLIENT_ID or DISCORD_REDIRECT_URI' });
+      return res.json({ error: 'Missing CLIENT_ID or REDIRECT_URI' });
     }
+
     const params = new URLSearchParams({
-      client_id: DISCORD_CLIENT_ID,
-      redirect_uri: DISCORD_REDIRECT_URI,
+      client_id: CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
       response_type: 'code',
       scope: 'identify guilds bot applications.commands',
       permissions: '268435488'
     });
+
     res.writeHead(302, { Location: `${DISCORD_OAUTH}?${params.toString()}` });
     return res.end();
   }
@@ -73,34 +108,20 @@ export default async function handler(req, res) {
       res.statusCode = 400;
       return res.end('Missing code');
     }
-    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+    if (!CLIENT_ID || !CLIENT_SECRET) {
       res.statusCode = 500;
       return res.end('Missing Discord secrets');
     }
+
     try {
-      const body = new URLSearchParams({
-        client_id: DISCORD_CLIENT_ID,
-        client_secret: DISCORD_CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: DISCORD_REDIRECT_URI
-      });
-      const tokenRes = await fetch(DISCORD_TOKEN, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body
-      });
-      if (!tokenRes.ok) {
-        const txt = await tokenRes.text();
-        res.statusCode = 401;
-        return res.end(`Token exchange failed: ${txt}`);
-      }
-      const tokenData = await tokenRes.json();
+      const tokenData = await exchangeCodeForToken(code);
       const authHeader = { Authorization: `${tokenData.token_type} ${tokenData.access_token}` };
-      const userRes = await fetch(`${DISCORD_API}/users/@me`, { headers: authHeader });
-      const guildRes = await fetch(`${DISCORD_API}/users/@me/guilds`, { headers: authHeader });
-      const user = await userRes.json();
-      const guilds = await guildRes.json();
+
+      const [user, guilds] = await Promise.all([
+        fetchDiscordUser(authHeader),
+        fetchDiscordGuilds(authHeader)
+      ]);
+
       const payload = {
         user: {
           id: user.id,
@@ -110,13 +131,16 @@ export default async function handler(req, res) {
         guilds,
         isOwner: OWNER_SET.has(user.id)
       };
-      const token = jwt.sign(payload, SESSION_SECRET, { expiresIn: '2h' });
+
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '2h' });
       setSessionCookie(res, token);
-      res.writeHead(302, { Location: '/' });
+
+      const redirectTarget = process.env.POST_LOGIN_REDIRECT || '/dashboard';
+      res.writeHead(302, { Location: redirectTarget });
       return res.end();
     } catch (err) {
       res.statusCode = 500;
-      return res.end('OAuth failed');
+      return res.end(typeof err?.message === 'string' ? err.message : 'OAuth failed');
     }
   }
 
