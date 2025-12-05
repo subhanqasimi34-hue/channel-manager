@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Channel Manager</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="auth-gate" id="authGate">
+    <div class="auth-card">
+      <div class="brand big">
+        <img src="/assets/logo.png" class="brand-logo" alt="Channel Manager logo" />
+        Channel Manager
+      </div>
+      <p>Sign in with Discord to manage your servers.</p>
+      <button class="pill primary" id="discordLogin">Sign in with Discord</button>
+      <p class="muted small">We request: identify, guilds, bot invite for the Channel Manager bot.</p>
+      <button class="pill ghost full" id="inviteBot">Invite Bot</button>
+    </div>
+  </div>
+
+  <div class="app-shell hidden" id="appShell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="/assets/logo.png" class="brand-logo" alt="Channel Manager logo" />
+        Channel Manager
+      </div>
+      <nav>
+        <button class="nav-item active" data-target="overview">Overview</button>
+        <button class="nav-item" data-target="designer">Server Designer</button>
+        <button class="nav-item" data-target="photo">Photo Import</button>
+        <button class="nav-item" data-target="text">Text Import</button>
+        <button class="nav-item" data-target="roles">Roles & Perms</button>
+        <button class="nav-item" data-target="templates">Templates</button>
+        <button class="nav-item" data-target="engine">Bot Engine</button>
+        <button class="nav-item" data-target="logs">Live Logs</button>
+      </nav>
+      <div class="user-card">
+        <div class="avatar" id="userAvatar">CM</div>
+        <div>
+          <div class="user-name" id="userName">Not connected</div>
+          <div class="user-status" id="userStatus">Sign in required</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="top-actions">
+          <button class="pill primary" id="btnInviteTop">Invite Bot</button>
+          <button class="pill ghost" id="btnDocs">Docs</button>
+        </div>
+        <div class="breadcrumbs">Dashboard / Overview</div>
+      </header>
+
+      <section class="panel" id="overview">
+        <div class="panel-header">
+          <div>
+            <h2>Servers</h2>
+            <p>Pick a server to manage or build.</p>
+          </div>
+          <div class="filters">
+            <select>
+              <option>All</option>
+              <option>Owned</option>
+              <option>Manageable</option>
+            </select>
+            <button class="pill ghost" id="refreshGuilds">Refresh</button>
+          </div>
+        </div>
+        <div class="server-grid" id="serverGrid"></div>
+      </section>
+
+      <section class="panel hidden" id="designer">
+        <div class="panel-header">
+          <div>
+            <h2>Server Designer</h2>
+            <p>Drag & drop categories and channels. Changes sync to the bot.</p>
+          </div>
+          <div class="actions">
+            <button class="pill ghost" id="designerUndo">Undo</button>
+            <button class="pill ghost" id="designerRedo">Redo</button>
+            <button class="pill primary" id="designerDeploy">Deploy</button>
+          </div>
+        </div>
+        <div class="designer">
+          <div class="columns" id="designerColumns"></div>
+          <div class="inspector">
+            <h3>Inspector</h3>
+            <div class="inspector-fields">
+              <label>Channel Name<input type="text" placeholder="#welcome" /></label>
+              <label>Type
+                <select>
+                  <option>Text</option>
+                  <option>Voice</option>
+                </select>
+              </label>
+              <label>Description<textarea rows="3" placeholder="Auto description"></textarea></label>
+              <label>Permissions Preset
+                <select>
+                  <option>Default</option>
+                  <option>Staff Only</option>
+                  <option>Private</option>
+                </select>
+              </label>
+              <button class="pill primary full">Apply Changes</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="photo">
+        <div class="panel-header">
+          <div>
+            <h2>Photo Import Studio</h2>
+            <p>Upload a screenshot; bot OCRs and rebuilds your server.</p>
+          </div>
+          <div class="actions">
+            <button class="pill ghost" id="photoHistory">History</button>
+          </div>
+        </div>
+        <div class="split">
+          <div class="upload-box">
+            <p>Drop screenshot here</p>
+            <input type="file" id="photoInput" accept="image/*" />
+            <button class="pill primary" id="photoAnalyze">Analyze & Build</button>
+          </div>
+          <div class="preview" id="photoPreview">
+            <h3>Detected Structure</h3>
+            <ul class="structure-list" id="photoStructure"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="text">
+        <div class="panel-header">
+          <div>
+            <h2>Text Importer</h2>
+            <p>Paste categories/channels; bot parses, corrects, and builds.</p>
+          </div>
+          <div class="actions">
+            <button class="pill ghost" id="loadSample">Load Sample</button>
+            <button class="pill primary" id="textBuild">Parse & Build</button>
+          </div>
+        </div>
+        <div class="split">
+          <textarea id="textInput" class="code" rows="14" placeholder="Welcome
+  #welcome
+  #rules
+Support
+  #ticket
+  ?? hangout"></textarea>
+          <div class="preview">
+            <h3>Parsed Preview</h3>
+            <ul class="structure-list" id="textStructure"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="roles">
+        <div class="panel-header">
+          <div>
+            <h2>Roles & Permissions</h2>
+            <p>Manage roles, colors, overwrites. Admin-only tools.</p>
+          </div>
+          <div class="actions">
+            <button class="pill ghost">Import Roles</button>
+            <button class="pill primary">Save</button>
+          </div>
+        </div>
+        <div class="grid-two">
+          <div class="card">
+            <h3>Roles</h3>
+            <ul class="role-list">
+              <li class="role"><span class="dot pink"></span> Admin</li>
+              <li class="role"><span class="dot blue"></span> Moderator</li>
+              <li class="role"><span class="dot green"></span> Member</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Permission Matrix</h3>
+            <p>Matrix editor placeholder. Configure overwrites per channel/role.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="templates">
+        <div class="panel-header">
+          <div>
+            <h2>Templates</h2>
+            <p>Save, load, and export server blueprints.</p>
+          </div>
+          <div class="actions">
+            <button class="pill ghost">Export</button>
+            <button class="pill primary">Import</button>
+          </div>
+        </div>
+        <div class="template-grid" id="templateGrid"></div>
+      </section>
+
+      <section class="panel hidden" id="engine">
+        <div class="panel-header">
+          <div>
+            <h2>Bot Engine</h2>
+            <p>Control plane for start/stop, status, and metrics.</p>
+          </div>
+          <div class="actions">
+            <button class="pill ghost">Restart</button>
+            <button class="pill primary">Deploy Now</button>
+          </div>
+        </div>
+        <div class="grid-two">
+          <div class="card">
+            <h3>Status</h3>
+            <p>Uptime: 00:00:00</p>
+            <p>Guilds: 0</p>
+            <p>Latency: 0 ms</p>
+          </div>
+          <div class="card admin-only">
+            <h3>Live Logs</h3>
+            <div class="log-box" id="liveLogs"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="logs">
+        <div class="panel-header">
+          <div>
+            <h2>Live Logs</h2>
+            <p>Stream of bot actions and events.</p>
+          </div>
+        </div>
+        <div class="log-box tall" id="logStream"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>
