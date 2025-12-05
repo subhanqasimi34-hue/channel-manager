@@ -26,7 +26,9 @@ function parseCookies(req) {
 }
 
 function setSessionCookie(res, token) {
-  res.setHeader('Set-Cookie', `cm_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7200`);
+  const secure = process.env.NODE_ENV === 'production' || !!process.env.VERCEL_URL;
+  const secureAttr = secure ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `cm_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7200${secureAttr}`);
 }
 
 function unauthorized(res) {
