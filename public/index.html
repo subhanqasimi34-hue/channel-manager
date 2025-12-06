@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Channel Manager</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="auth-gate" style="position: static; min-height: 100vh; background: transparent;">
+    <div class="auth-card" style="margin: 80px auto;">
+      <div class="brand big">
+        <img src="/assets/Channel-manager.png" class="brand-logo" alt="Channel Manager logo" />
+        Channel Manager
+      </div>
+      <p>Sign in with Discord to manage your servers.</p>
+      <button class="pill primary" id="discordLogin">Sign in with Discord</button>
+      <p class="muted small">Scopes: identify, guilds, bot + commands for Channel Manager.</p>
+      <button class="pill ghost full" id="inviteBot">Invite Bot</button>
+    </div>
+  </div>
+
+  <script>
+    const BOT_CLIENT_ID = '1446565037857574924';
+    const BOT_PERMS = '268435488';
+    const inviteUrl = () => {
+      const params = new URLSearchParams({ client_id: BOT_CLIENT_ID, scope: 'bot applications.commands', permissions: BOT_PERMS });
+      return `https://discord.com/api/oauth2/authorize?${params.toString()}`;
+    };
+    document.getElementById('inviteBot')?.addEventListener('click', () => window.location.href = inviteUrl());
+    document.getElementById('discordLogin')?.addEventListener('click', () => window.location.href = '/api/auth');
+    // If already logged in, bounce to dashboard
+    fetch('/api/user', { credentials: 'include' }).then(r => r.ok ? r.json() : null).then(data => {
+      if (data?.user) window.location.href = '/dashboard.html';
+    }).catch(() => {});
+  </script>
+</body>
+</html>
